@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Smart Trolley Admin</title>
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #111;
+  color: white;
+}
+input, button {
+  padding: 10px;
+  margin: 5px;
+}
+table {
+  margin: auto;
+  border-collapse: collapse;
+  width: 80%;
+}
+td, th {
+  border: 1px solid white;
+  padding: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Admin Panel</h1>
+
+<h3>Add / Update Product</h3>
+
+<input id="barcode" placeholder="Barcode"><br>
+<input id="name" placeholder="Product Name"><br>
+<input id="price" placeholder="Price"><br>
+<input id="stock" placeholder="Stock"><br>
+
+<button onclick="saveProduct()">Save Product</button>
+
+<h3>Product List</h3>
+
+<table id="productTable">
+<tr>
+<th>Barcode</th>
+<th>Name</th>
+<th>Price</th>
+<th>Stock</th>
+<th>Action</th>
+</tr>
+</table>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+
+// ---- YOUR FIREBASE CONFIG ----
+const firebaseConfig = {
+  apiKey: "AIzaSyDbOouftPpbrErEtrfO_cWhXLrDYC6ysjA",
+  authDomain: "smarttrolly-80316.firebaseapp.com",
+  databaseURL: "https://smarttrolly-80316-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smarttrolly-80316",
+  storageBucket: "smarttrolly-80316.appspot.com",
+  messagingSenderId: "1059730546653",
+  appId: "1:1059730546653:web:725534dca19b81fde42034"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ---------- SAVE PRODUCT ----------
+window.saveProduct = function() {
+
+  const bc = document.getElementById("barcode").value.trim();
+  const nm = document.getElementById("name").value.trim();
+  const pr = Number(document.getElementById("price").value);
+  const st = Number(document.getElementById("stock").value);
+
+  if (!bc || !nm) {
+    alert("Enter all fields");
+    return;
+  }
+
+  set(ref(db, "products/" + bc), {
+    name: nm,
+    price: pr,
+    stock: st
+  }).then(() => {
+    alert("Product Saved!");
+  }).catch((error) => {
+    alert("Error: " + error);
+  });
+};
+
+// ---------- LOAD PRODUCT LIST ----------
+const productRef = ref(db, "products");
+
+onValue(productRef, (snapshot) => {
+  const table = document.getElementById("productTable");
+
+  table.innerHTML = `
+  <tr>
+    <th>Barcode</th>
+    <th>Name</th>
+    <th>Price</th>
+    <th>Stock</th>
+    <th>Action</th>
+  </tr>`;
+
+  if (!snapshot.exists()) return;
+
+  snapshot.forEach((child) => {
+    const data = child.val();
+    const bc = child.key;
+
+    table.innerHTML += `
+      <tr>
+        <td>${bc}</td>
+        <td>${data.name}</td>
+        <td>${data.price}</td>
+        <td>${data.stock}</td>
+        <td><button onclick="deleteProduct('${bc}')">Delete</button></td>
+      </tr>`;
+  });
+});
+
+// ---------- DELETE ----------
+window.deleteProduct = function(bc) {
+  remove(ref(db, "products/" + bc))
+    .then(() => alert("Deleted"))
+    .catch(err => alert(err));
+};
+
+</script>
+
+</body>
+</html>

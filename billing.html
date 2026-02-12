@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Smart Trolley Billing</title>
+<style>
+body{
+  font-family: Arial;
+  background:#0f172a;
+  color:white;
+  text-align:center;
+}
+input,button{
+  padding:10px;
+  margin:5px;
+}
+table{
+  margin:auto;
+  border-collapse:collapse;
+  width:70%;
+}
+td,th{
+  border:1px solid white;
+  padding:8px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Smart Trolley Billing</h1>
+
+<input id="trolleyId" placeholder="Trolley01"><br>
+<button id="showBtn">Show Bill</button>
+
+<table id="billTable">
+<tr>
+<th>Product</th>
+<th>Qty</th>
+<th>Amount</th>
+</tr>
+</table>
+
+<h2 id="total">Total ₹0</h2>
+
+<button id="payBtn">Pay Now</button>
+<button id="downBtn">Download Bill</button>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+
+// ---- YOUR FIREBASE CONFIG ----
+const firebaseConfig = {
+  apiKey: "AIzaSyDbOouftPpbrErEtrfO_cWhXLrDYC6ysjA",
+  databaseURL: "https://smarttrolly-80316-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let billText = "";
+let totalAmount = 0;
+
+// ---------- SHOW BILL ----------
+document.getElementById("showBtn").onclick = async () => {
+
+  const id = document.getElementById("trolleyId").value.trim();
+  if(!id){ alert("Enter Trolley ID"); return; }
+
+  const snap = await get(ref(db,"trolleys/"+id+"/items"));
+
+  const table = document.getElementById("billTable");
+  table.innerHTML="<tr><th>Product</th><th>Qty</th><th>Amount</th></tr>";
+
+  billText = "SMART TROLLEY BILL\n\n";
+  totalAmount = 0;
+
+  if(!snap.exists()){
+    alert("No Items Found");
+    return;
+  }
+
+  snap.forEach(child=>{
+    const d = child.val();
+
+    // SAFE NAME
+    const name = d.name ? d.name : child.key;
+    const qty = d.qty || 0;
+    const price = d.price || 0;
+
+    const line = qty * price;
+    totalAmount += line;
+
+    table.innerHTML += `
+    <tr>
+      <td>${name}</td>
+      <td>${qty}</td>
+      <td>${line}</td>
+    </tr>`;
+
+    billText += `${name}  x${qty}  ₹${line}\n`;
+  });
+
+  document.getElementById("total").innerText = "Total ₹"+totalAmount;
+  billText += `\nTOTAL ₹${totalAmount}`;
+};
+
+// ---------- PAY ----------
+document.getElementById("payBtn").onclick = async () => {
+  const id = document.getElementById("trolleyId").value.trim();
+  if(!id) return;
+
+  await set(ref(db,"trolleys/"+id+"/status"),"paid");
+  alert("Payment Successful");
+};
+
+// ---------- DOWNLOAD BILL ----------
+document.getElementById("downBtn").onclick = () => {
+
+  if(!billText){
+    alert("Generate Bill First");
+    return;
+  }
+
+  const blob = new Blob([billText], {type:'application/msword'});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download="SmartTrolleyBill.doc";
+  a.click();
+};
+</script>
+
+</body>
+</html>
