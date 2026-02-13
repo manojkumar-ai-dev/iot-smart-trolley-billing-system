@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Smart Trolley Dashboard</title>
+<style>
+body {
+  font-family: Arial;
+  background:#0f172a;
+  color:white;
+  text-align:center;
+}
+
+.card {
+  display:inline-block;
+  background:#1f2933;
+  padding:20px;
+  margin:10px;
+  width:200px;
+  border-radius:12px;
+}
+
+table {
+  margin:auto;
+  border-collapse:collapse;
+  width:80%;
+}
+
+td,th {
+  border:1px solid white;
+  padding:8px;
+}
+
+.low { color:red; }
+.good { color:lightgreen; }
+</style>
+</head>
+
+<body>
+
+<h1>Smart Trolley Dashboard</h1>
+
+<!-- TOP CARDS -->
+<div class="card">
+  <h3>Total Products</h3>
+  <h2 id="productCount">0</h2>
+</div>
+
+<div class="card">
+  <h3>Active Trolleys</h3>
+  <h2 id="activeTrolley">0</h2>
+</div>
+
+<div class="card">
+  <h3>Paid Orders</h3>
+  <h2 id="paidOrders">0</h2>
+</div>
+
+<div class="card">
+  <h3>Total Revenue</h3>
+  <h2 id="revenue">₹0</h2>
+</div>
+
+<h2>Low Stock Alerts</h2>
+<ul id="lowStock"></ul>
+
+<h2>Product List</h2>
+<table id="productTable">
+<tr>
+<th>Barcode</th>
+<th>Name</th>
+<th>Price</th>
+<th>Stock</th>
+</tr>
+</table>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDbOouftPpbrErEtrfO_cWhXLrDYC6ysjA",
+  databaseURL: "https://smarttrolly-80316-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ---------- PRODUCTS ----------
+onValue(ref(db,"products"), snap=>{
+  let count=0;
+  let lowList=document.getElementById("lowStock");
+  let table=document.getElementById("productTable");
+
+  lowList.innerHTML="";
+  table.innerHTML="<tr><th>Barcode</th><th>Name</th><th>Price</th><th>Stock</th></tr>";
+
+  snap.forEach(child=>{
+    count++;
+    let d=child.val();
+    let bc=child.key;
+
+    // Low stock
+    if(d.stock <= 2){
+      lowList.innerHTML += `<li class="low">${d.name} - ${d.stock}</li>`;
+    }
+
+    let stockClass = d.stock <= 2 ? "low" : "good";
+
+    table.innerHTML += `
+      <tr>
+        <td>${bc}</td>
+        <td>${d.name}</td>
+        <td>${d.price}</td>
+        <td class="${stockClass}">${d.stock}</td>
+      </tr>`;
+  });
+
+  document.getElementById("productCount").innerText=count;
+});
+
+// ---------- TROLLEYS ----------
+onValue(ref(db,"trolleys"), snap=>{
+  let active=0;
+  let paid=0;
+  let revenue=0;
+
+  snap.forEach(child=>{
+    let d=child.val();
+
+    if(d.status==="shopping" || d.status==="billing"){
+      active++;
+    }
+
+    if(d.status==="paid"){
+      paid++;
+      revenue += d.total || 0;
+    }
+  });
+
+  document.getElementById("activeTrolley").innerText=active;
+  document.getElementById("paidOrders").innerText=paid;
+  document.getElementById("revenue").innerText="₹"+revenue;
+});
+</script>
+
+</body>
+</html>

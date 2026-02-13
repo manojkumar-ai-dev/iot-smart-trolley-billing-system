@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Smart Trolley System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  margin:0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(135deg,#0f172a,#020617);
+  color:white;
+  text-align:center;
+}
+
+/* NAVBAR */
+.navbar {
+  background:#020617;
+  padding:15px;
+  font-size:22px;
+  font-weight:bold;
+}
+
+/* HERO */
+.hero {
+  padding:40px;
+}
+
+.hero h1 {
+  font-size:38px;
+}
+
+.hero p {
+  opacity:0.8;
+}
+
+/* CARDS */
+.container {
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  margin-top:20px;
+}
+
+.card {
+  background:#1f2933;
+  width:250px;
+  margin:15px;
+  padding:25px;
+  border-radius:15px;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+.card:hover {
+  transform:translateY(-8px);
+  background:#334155;
+}
+
+.card h3 {
+  margin-top:10px;
+}
+
+.footer {
+  margin-top:40px;
+  padding:20px;
+  opacity:0.6;
+}
+</style>
+</head>
+
+<body>
+
+<div class="navbar">
+  Smart Trolley System
+</div>
+
+<div class="hero">
+  <h1>AI Smart Shopping Experience</h1>
+  <p>Automated Billing • Live Monitoring • Self Checkout</p>
+</div>
+
+<div class="container">
+
+  <div class="card" onclick="go('billing.html')">
+    <h2>🛒</h2>
+    <h3>Billing</h3>
+    <p>View trolley items & pay</p>
+  </div>
+
+  <div class="card" onclick="go('admin.html')">
+    <h2>⚙</h2>
+    <h3>Admin Panel</h3>
+    <p>Manage products & stock</p>
+  </div>
+
+  <div class="card" onclick="go('dashboard.html')">
+    <h2>📊</h2>
+    <h3>Dashboard</h3>
+    <p>Live monitoring & analytics</p>
+  </div>
+
+</div>
+
+<div class="footer">
+  © 2026 Smart Trolley | Built by Manoj
+</div>
+
+<script>
+function go(page){
+  window.location = page;
+}
+</script>
+
+</body>
+</html>
