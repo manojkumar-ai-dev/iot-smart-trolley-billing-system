@@ -2,6 +2,7 @@
 <html>
 <head>
 <title>Smart Trolley Billing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body{
   font-family: Arial;
@@ -22,6 +23,13 @@ td,th{
   border:1px solid white;
   padding:8px;
 }
+button{
+  background:#22c55e;
+  border:none;
+  color:white;
+  cursor:pointer;
+  border-radius:6px;
+}
 </style>
 </head>
 
@@ -29,7 +37,7 @@ td,th{
 
 <h1>Smart Trolley Billing</h1>
 
-<input id="trolleyId" placeholder="Trolley01"><br>
+<input id="billCode" placeholder="Enter Bill Code"><br>
 <button id="showBtn">Show Bill</button>
 
 <table id="billTable">
@@ -43,13 +51,15 @@ td,th{
 <h2 id="total">Total ₹0</h2>
 
 <button id="payBtn">Pay Now</button>
-<button id="downBtn">Download Bill</button>
+<button id="pdfBtn">Download Bill</button>
+
+<!-- PDF LIBRARY -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-// ---- YOUR FIREBASE CONFIG ----
 const firebaseConfig = {
   apiKey: "AIzaSyDbOouftPpbrErEtrfO_cWhXLrDYC6ysjA",
   databaseURL: "https://smarttrolly-80316-default-rtdb.asia-southeast1.firebasedatabase.app"
@@ -58,75 +68,136 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let billText = "";
 let totalAmount = 0;
+let activeTrolley = "";
+let billItems = [];
 
 // ---------- SHOW BILL ----------
 document.getElementById("showBtn").onclick = async () => {
 
-  const id = document.getElementById("trolleyId").value.trim();
-  if(!id){ alert("Enter Trolley ID"); return; }
+  const codeInput = document.getElementById("billCode").value.trim();
+  if(!codeInput){ alert("Enter Bill Code"); return; }
 
-  const snap = await get(ref(db,"trolleys/"+id+"/items"));
+  const tSnap = await get(ref(db,"trolleys"));
+  if(!tSnap.exists()){ alert("No Data"); return; }
+
+  activeTrolley = "";
+  billItems = [];
+  totalAmount = 0;
+
+  tSnap.forEach(child=>{
+    const d = child.val();
+    if(d.billCode && String(d.billCode).trim() === codeInput){
+      activeTrolley = child.key;
+    }
+  });
+
+  if(activeTrolley === ""){
+    alert("Invalid Bill Code");
+    return;
+  }
+
+  const snap = await get(ref(db,"trolleys/"+activeTrolley+"/items"));
 
   const table = document.getElementById("billTable");
   table.innerHTML="<tr><th>Product</th><th>Qty</th><th>Amount</th></tr>";
 
-  billText = "SMART TROLLEY BILL\n\n";
-  totalAmount = 0;
+  if(!snap.exists()){ alert("No Items"); return; }
 
-  if(!snap.exists()){
-    alert("No Items Found");
-    return;
-  }
+  for (const [barcode, d] of Object.entries(snap.val())) {
 
-  snap.forEach(child=>{
-    const d = child.val();
+    const nameSnap = await get(ref(db,"products/"+barcode+"/name"));
+    const priceSnap = await get(ref(db,"products/"+barcode+"/price"));
 
-    // SAFE NAME
-    const name = d.name ? d.name : child.key;
+    let name = nameSnap.exists()? nameSnap.val() : "Item";
+    let price = priceSnap.exists()? priceSnap.val() : 0;
+
     const qty = d.qty || 0;
-    const price = d.price || 0;
-
     const line = qty * price;
     totalAmount += line;
 
-    table.innerHTML += `
-    <tr>
-      <td>${name}</td>
-      <td>${qty}</td>
-      <td>${line}</td>
-    </tr>`;
+    billItems.push({name, qty, line});
 
-    billText += `${name}  x${qty}  ₹${line}\n`;
-  });
+    const row = document.createElement("tr");
+    row.innerHTML =
+      "<td>"+name+"</td>"+
+      "<td>"+qty+"</td>"+
+      "<td>"+line+"</td>";
 
-  document.getElementById("total").innerText = "Total ₹"+totalAmount;
-  billText += `\nTOTAL ₹${totalAmount}`;
+    table.appendChild(row);
+  }
+
+  document.getElementById("total").innerText="Total ₹"+totalAmount;
 };
 
-// ---------- PAY ----------
-document.getElementById("payBtn").onclick = async () => {
-  const id = document.getElementById("trolleyId").value.trim();
-  if(!id) return;
+// ---------- PDF DOWNLOAD ----------
+document.getElementById("pdfBtn").onclick = () => {
 
-  await set(ref(db,"trolleys/"+id+"/status"),"paid");
-  alert("Payment Successful");
-};
-
-// ---------- DOWNLOAD BILL ----------
-document.getElementById("downBtn").onclick = () => {
-
-  if(!billText){
+  if(billItems.length === 0){
     alert("Generate Bill First");
     return;
   }
 
-  const blob = new Blob([billText], {type:'application/msword'});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download="SmartTrolleyBill.doc";
-  a.click();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  let y = 20;
+  doc.setFontSize(18);
+  doc.text("SMART TROLLEY BILL", 55, y);
+
+  y += 10;
+  doc.setFontSize(10);
+  doc.text("Date: " + new Date().toLocaleString(), 10, y);
+
+  y += 10;
+  doc.line(10, y, 200, y);
+
+  y += 10;
+  doc.text("Product", 10, y);
+  doc.text("Qty", 100, y);
+  doc.text("Amount", 150, y);
+
+  y += 5;
+  doc.line(10, y, 200, y);
+
+  billItems.forEach(item => {
+    y += 10;
+    doc.text(item.name, 10, y);
+    doc.text(String(item.qty), 100, y);
+    doc.text("Rs " + item.line, 150, y);
+  });
+
+  y += 15;
+  doc.line(10, y, 200, y);
+
+  y += 10;
+  doc.setFontSize(14);
+  doc.text("TOTAL: Rs " + totalAmount, 130, y);
+
+  y += 15;
+  doc.setFontSize(12);
+  doc.text("Thank You! Visit Again", 60, y);
+
+  doc.save("SmartTrolleyBill.pdf");
+};
+
+// ---------- PAYMENT ----------
+document.getElementById("payBtn").onclick = async () => {
+
+  if(activeTrolley === ""){
+    alert("No Active Bill");
+    return;
+  }
+
+  alert("Payment Successful");
+
+  await set(ref(db,"trolleys/"+activeTrolley+"/items"), "");
+  await set(ref(db,"trolleys/"+activeTrolley+"/total"), 0);
+  await set(ref(db,"trolleys/"+activeTrolley+"/billCode"), "");
+  await set(ref(db,"trolleys/"+activeTrolley+"/status"), "shopping");
+
+  document.getElementById("billTable").innerHTML="";
+  document.getElementById("total").innerText="Total ₹0";
 };
 </script>
 
