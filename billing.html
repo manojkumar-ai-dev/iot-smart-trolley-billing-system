@@ -3,6 +3,7 @@
 <head>
 <title>Smart Trolley Billing</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
 body{
   font-family: Arial;
@@ -10,26 +11,33 @@ body{
   color:white;
   text-align:center;
 }
+
 input,button{
   padding:10px;
   margin:5px;
 }
+
 table{
   margin:auto;
   border-collapse:collapse;
-  width:70%;
+  width:80%;
 }
+
 td,th{
   border:1px solid white;
   padding:8px;
 }
+
 button{
-  background:#22c55e;
   border:none;
   color:white;
   cursor:pointer;
   border-radius:6px;
 }
+
+#showBtn{background:#22c55e;}
+#payBtn{background:#2563eb;}
+#pdfBtn{background:#f59e0b;}
 </style>
 </head>
 
@@ -44,6 +52,7 @@ button{
 <tr>
 <th>Product</th>
 <th>Qty</th>
+<th>Price</th>
 <th>Amount</th>
 </tr>
 </table>
@@ -53,10 +62,10 @@ button{
 <button id="payBtn">Pay Now</button>
 <button id="pdfBtn">Download Bill</button>
 
-<!-- PDF LIBRARY -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
@@ -72,27 +81,35 @@ let totalAmount = 0;
 let activeTrolley = "";
 let billItems = [];
 
-// ---------- SHOW BILL ----------
 document.getElementById("showBtn").onclick = async () => {
 
   const codeInput = document.getElementById("billCode").value.trim();
-  if(!codeInput){ alert("Enter Bill Code"); return; }
+
+  if(!codeInput){
+    alert("Enter Bill Code");
+    return;
+  }
 
   const tSnap = await get(ref(db,"trolleys"));
-  if(!tSnap.exists()){ alert("No Data"); return; }
 
-  activeTrolley = "";
-  billItems = [];
-  totalAmount = 0;
+  if(!tSnap.exists()){
+    alert("No Data");
+    return;
+  }
+
+  activeTrolley="";
+  totalAmount=0;
+  billItems=[];
 
   tSnap.forEach(child=>{
-    const d = child.val();
-    if(d.billCode && String(d.billCode).trim() === codeInput){
-      activeTrolley = child.key;
+    const d=child.val();
+
+    if(d.billCode && String(d.billCode).trim()===codeInput){
+      activeTrolley=child.key;
     }
   });
 
-  if(activeTrolley === ""){
+  if(activeTrolley===""){
     alert("Invalid Bill Code");
     return;
   }
@@ -100,105 +117,165 @@ document.getElementById("showBtn").onclick = async () => {
   const snap = await get(ref(db,"trolleys/"+activeTrolley+"/items"));
 
   const table = document.getElementById("billTable");
-  table.innerHTML="<tr><th>Product</th><th>Qty</th><th>Amount</th></tr>";
 
-  if(!snap.exists()){ alert("No Items"); return; }
+  table.innerHTML="<tr><th>Product</th><th>Qty</th><th>Price</th><th>Amount</th></tr>";
 
-  for (const [barcode, d] of Object.entries(snap.val())) {
+  if(!snap.exists()){
+    alert("No Items");
+    return;
+  }
+
+  for(const [barcode,d] of Object.entries(snap.val())){
 
     const nameSnap = await get(ref(db,"products/"+barcode+"/name"));
     const priceSnap = await get(ref(db,"products/"+barcode+"/price"));
 
-    let name = nameSnap.exists()? nameSnap.val() : "Item";
-    let price = priceSnap.exists()? priceSnap.val() : 0;
+    let name=nameSnap.exists()?nameSnap.val():"Item";
+    let price=priceSnap.exists()?priceSnap.val():0;
 
-    const qty = d.qty || 0;
-    const line = qty * price;
-    totalAmount += line;
+    const qty=d.qty||0;
+    const line=qty*price;
 
-    billItems.push({name, qty, line});
+    totalAmount+=line;
 
-    const row = document.createElement("tr");
-    row.innerHTML =
-      "<td>"+name+"</td>"+
-      "<td>"+qty+"</td>"+
-      "<td>"+line+"</td>";
+    billItems.push({name,qty,price,line});
+
+    const row=document.createElement("tr");
+
+    row.innerHTML=
+    "<td>"+name+"</td>"+
+    "<td>"+qty+"</td>"+
+    "<td>"+price+"</td>"+
+    "<td>"+line+"</td>";
 
     table.appendChild(row);
   }
 
   document.getElementById("total").innerText="Total ₹"+totalAmount;
+
 };
 
-// ---------- PDF DOWNLOAD ----------
-document.getElementById("pdfBtn").onclick = () => {
+document.getElementById("pdfBtn").onclick=()=>{
 
-  if(billItems.length === 0){
-    alert("Generate Bill First");
-    return;
-  }
+if(billItems.length===0){
+alert("Generate Bill First");
+return;
+}
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF();
 
-  let y = 20;
-  doc.setFontSize(18);
-  doc.text("SMART TROLLEY BILL", 55, y);
+let y=15;
 
-  y += 10;
-  doc.setFontSize(10);
-  doc.text("Date: " + new Date().toLocaleString(), 10, y);
+doc.setFontSize(22);
+doc.setFont(undefined,"bold");
+doc.text("MANOJ MART",105,y,{align:"center"});
 
-  y += 10;
-  doc.line(10, y, 200, y);
+y+=7;
 
-  y += 10;
-  doc.text("Product", 10, y);
-  doc.text("Qty", 100, y);
-  doc.text("Amount", 150, y);
+doc.setFontSize(10);
+doc.setFont(undefined,"normal");
+doc.text("Arcot Road, Vellore District",105,y,{align:"center"});
 
-  y += 5;
-  doc.line(10, y, 200, y);
+y+=5;
 
-  billItems.forEach(item => {
-    y += 10;
-    doc.text(item.name, 10, y);
-    doc.text(String(item.qty), 100, y);
-    doc.text("Rs " + item.line, 150, y);
-  });
+doc.text("Phone: 6379793036",105,y,{align:"center"});
 
-  y += 15;
-  doc.line(10, y, 200, y);
+y+=10;
 
-  y += 10;
-  doc.setFontSize(14);
-  doc.text("TOTAL: Rs " + totalAmount, 130, y);
+doc.setLineWidth(0.5);
+doc.line(10,y,200,y);
 
-  y += 15;
-  doc.setFontSize(12);
-  doc.text("Thank You! Visit Again", 60, y);
+y+=8;
 
-  doc.save("SmartTrolleyBill.pdf");
+doc.setFontSize(14);
+doc.text("SMART TROLLEY BILL",105,y,{align:"center"});
+
+y+=8;
+
+doc.setFontSize(10);
+
+doc.text("Date: "+new Date().toLocaleString(),10,y);
+
+const billNo=Math.floor(Math.random()*90000)+10000;
+doc.text("Bill No: "+billNo,150,y);
+
+y+=8;
+
+doc.line(10,y,200,y);
+
+y+=6;
+
+doc.setFont(undefined,"bold");
+
+doc.text("Product",10,y);
+doc.text("Qty",95,y);
+doc.text("Price",125,y);
+doc.text("Amount",165,y);
+
+y+=4;
+doc.line(10,y,200,y);
+
+doc.setFont(undefined,"normal");
+
+let totalQty=0;
+
+billItems.forEach(item=>{
+
+y+=8;
+
+doc.text(item.name,10,y);
+doc.text(String(item.qty),95,y);
+doc.text("Rs "+item.price,125,y);
+doc.text("Rs "+item.line,165,y);
+
+totalQty+=item.qty;
+
+});
+
+y+=10;
+doc.line(10,y,200,y);
+
+y+=8;
+
+doc.text("Total Items: "+totalQty,10,y);
+
+doc.setFont(undefined,"bold");
+doc.setFontSize(12);
+
+doc.text("TOTAL: Rs "+totalAmount,150,y);
+
+y+=12;
+
+doc.setFontSize(10);
+doc.setFont(undefined,"normal");
+
+doc.text("Thank you for shopping with us!",105,y,{align:"center"});
+
+doc.save("SmartTrolleyBill.pdf");
+
 };
 
-// ---------- PAYMENT ----------
-document.getElementById("payBtn").onclick = async () => {
+document.getElementById("payBtn").onclick=async()=>{
 
-  if(activeTrolley === ""){
-    alert("No Active Bill");
-    return;
-  }
+if(activeTrolley===""){
+alert("No Active Bill");
+return;
+}
 
-  alert("Payment Successful");
+alert("Payment Successful");
 
-  await set(ref(db,"trolleys/"+activeTrolley+"/items"), "");
-  await set(ref(db,"trolleys/"+activeTrolley+"/total"), 0);
-  await set(ref(db,"trolleys/"+activeTrolley+"/billCode"), "");
-  await set(ref(db,"trolleys/"+activeTrolley+"/status"), "shopping");
+await set(ref(db,"trolleys/"+activeTrolley+"/items"),"");
+await set(ref(db,"trolleys/"+activeTrolley+"/total"),0);
+await set(ref(db,"trolleys/"+activeTrolley+"/billCode"),"");
+await set(ref(db,"trolleys/"+activeTrolley+"/status"),"shopping");
 
-  document.getElementById("billTable").innerHTML="";
-  document.getElementById("total").innerText="Total ₹0";
+document.getElementById("billTable").innerHTML="<tr><th>Product</th><th>Qty</th><th>Price</th><th>Amount</th></tr>";
+
+document.getElementById("total").innerText="Total ₹0";
+
 };
+
 </script>
 
 </body>
